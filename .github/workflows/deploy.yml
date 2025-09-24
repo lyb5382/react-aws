@@ -21,15 +21,17 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        run: npm run build   # (Vite 기본 출력: dist)
 
+      # AWS 자격 구성 (region 필수)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ap-northeast-2
+          aws-region:            ${{ secrets.AWS_REGION }}   # 예) ap-northeast-2
 
+      # 정적 자산: 긴 캐시 (index.html 제외)
       - name: Sync static assets to S3 (long cache)
         run: |
           aws s3 sync "dist" "s3://${{ secrets.S3_BUCKET }}" --delete \
@@ -37,6 +39,7 @@ jobs:
             --cache-control "max-age=31536000,public" \
             --no-progress
 
+      # HTML: 캐시 금지(즉시 갱신)
       - name: Upload index.html (no cache)
         run: |
           aws s3 cp "dist/index.html" "s3://${{ secrets.S3_BUCKET }}/index.html" \
@@ -44,6 +47,7 @@ jobs:
             --content-type "text/html; charset=utf-8" \
             --no-progress
 
+      # CloudFront 캐시 무효화
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
